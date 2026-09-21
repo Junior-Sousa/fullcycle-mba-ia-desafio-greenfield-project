@@ -126,7 +126,7 @@ Sufixos: `*.test.ts(x)` (unitário), `*.integration.test.ts(x)` (Route Handlers 
 
 ## ✅ Funcionalidades implementadas
 
-**Fase 01 — Configuração base** e **Fase 02 — Autenticação** estão concluídas (backend + frontend).
+**Fase 01 — Configuração base**, **Fase 02 — Autenticação** e **Fase 03 — Upload e Processamento de Vídeos** estão concluídas.
 
 ### Autenticação (Fase 02)
 
@@ -152,6 +152,25 @@ Telas e Route Handlers BFF (`next-frontend`):
 - `app/api/auth/{signup,login,logout,forgot-password}` — proxy same-origin para a API.
 
 Segurança: senhas com **Argon2**, **JWT** com `JwtAuthGuard` global (opt-out via `@Public()`), **rotação de refresh token** com detecção de reuso, **rate limiting** (`ThrottlerGuard`) nos endpoints de auth, e sessão no navegador via **iron-session** (cookies HTTP-only).
+
+### Upload e Processamento de Vídeos (Fase 03)
+
+Fluxo assíncrono de **iniciação de upload multipart → envio direto ao MinIO S3 → confirmação → processamento em segundo plano por worker BullMQ (extração de metadados/duração + thumbnail via FFmpeg) → reprodução por streaming e download**.
+
+Endpoints da API de Vídeos (`nestjs-project`):
+
+| Método & Rota | Descrição |
+|---------------|-----------|
+| `POST /videos/upload/initiate` | Inicia o upload multipart (cria vídeo em status `DRAFT` com `videoId` NanoID de 10 caracteres e retorna URLs pré-assinadas de partes) |
+| `POST /videos/:videoId/upload/confirm` | Confirma a conclusão do upload multipart no S3, atualiza status para `UPLOADED` e dispara o job no BullMQ |
+| `GET /videos/:videoId` | Consulta metadados do vídeo, status (`DRAFT` → `UPLOADED` → `PROCESSING` → `READY` \| `ERROR`), thumbnail e URLs de streaming/download |
+| `GET /videos/:videoId/stream` | Redirecionamento 302 para URL pré-assinada de streaming direto no MinIO S3 |
+| `GET /videos/:videoId/download` | Redirecionamento 302 para URL pré-assinada com `Content-Disposition: attachment` no MinIO S3 |
+
+Arquitetura de Infraestrutura da Fase 03:
+- **Object Storage (MinIO S3)**: Bucket `streamtube-videos` organizando arquivos de vídeo (`raw-videos/`) e thumbnails (`thumbnails/`).
+- **Message Queue (BullMQ + Redis)**: Fila `video-processing` gerenciando tarefas assíncronas e retentativas automáticas.
+- **Video Worker (FFmpeg)**: Processo dedicado NestJS que consome tarefas da fila, extrai a duração via `ffprobe` e gera a thumbnail automática no timestamp `min(10s, duration * 10%)` via `ffmpeg-static`.
 
 ## 🛠️ Estrutura do Projeto
 
