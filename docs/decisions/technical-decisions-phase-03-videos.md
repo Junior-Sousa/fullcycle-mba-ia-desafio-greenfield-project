@@ -137,7 +137,9 @@ _Subprojects in scope:_
 
 **Decision:** _[fluent-ffmpeg + ffprobe]_
 
----
+**Revisions:**
+
+- 2026-09-21 — Thumbnail frame heuristic specified: seek to `min(10s, duration × 10%)` — avoids black frames at the start, works for short and long videos. Rationale: plan-resolve AMB-1 — implementation-time ambiguity resolved; heuristic documented here to establish the contract for the worker SI.
 
 ## TD-05: Unique Video URL Identifier
 
@@ -168,7 +170,11 @@ _Subprojects in scope:_
 
 **Decision:** _[NanoID]_
 
----
+**Revisions:**
+
+- 2026-09-21 — Pin to `nanoid@3.x` (CJS-compatible build). `nanoid` v4+ is ESM-only and throws `ERR_REQUIRE_ESM` in CommonJS NestJS apps. v3 API is identical (`nanoid(size)`, `customAlphabet`). Rationale: plan-resolve ICC-1 — inherited CommonJS toolchain constraint conflicts with ESM-only default; v3 pin is the minimal-change resolution.
+
+**Libraries:** `nanoid@^3.x`
 
 ## TD-06: Video Streaming Strategy
 

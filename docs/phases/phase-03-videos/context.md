@@ -3,9 +3,10 @@ kind: phase
 name: phase-03-videos
 sources_mtime:
   docs/project-plan.md: "2026-09-21T14:12:31-03:00"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-09-21T15:06:36-03:00"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-09-21T15:27:27-03:00"
   docs/phases/phase-02-auth/context.md: "2026-09-21T14:12:31-03:00"
   .claude/skills/testing-guide-nestjs-project/SKILL.md: "2026-09-21T14:12:31-03:00"
+  docs/phases/phase-03-videos/library-refs.md: "2026-09-21T15:32:03-03:00"
 ---
 
 # phase-03-videos — Context
@@ -95,15 +96,23 @@ _(current-phase TDs only)_
 
 ### phase-03-videos/TD-04
 
-**Recommendation:** The architecture diagram explicitly designates FFmpeg. `fluent-ffmpeg` is the standard Node.js wrapper with a mature API covering both metadata extraction (via `ffprobe`) and thumbnail generation in a single dependency. WebAssembly FFmpeg is 5-20x slower than native — not viable for production video processing. The Sharp + raw exec alternative still requires FFmpeg binary and adds unnecessary complexity.
+**Recommendation:** The architecture diagram explicitly designates FFmpeg. `fluent-ffmpeg` is the standard Node.js wrapper with a mature API covering both metadata extraction and thumbnail generation in a single dependency. Options B and C are either non-viable for production (WASM) or unnecessarily complex.
 
 **Libraries:** `fluent-ffmpeg`, `@types/fluent-ffmpeg`
 
+**Revisions:**
+
+- 2026-09-21 — Thumbnail frame heuristic specified: seek to `min(10s, duration × 10%)`. Rationale: plan-resolve AMB-1 — heuristic documented to establish the contract for the worker SI.
+
 ### phase-03-videos/TD-05
 
-**Recommendation:** The standard choice for short URL identifiers in Node.js projects. URL-safe alphabet (`A-Za-z0-9_-`), cryptographically random, configurable length (default 21 chars → astronomically low collision probability), minimal bundle size, and widely used. A unique index on the `videoId` column handles the rare collision. The ESM/CJS compatibility issue is resolved by dynamic `import()` or using the CJS build.
+**Recommendation:** The standard choice for short URL identifiers in Node.js projects. URL-safe, cryptographically random, configurable length, minimal size, and widely used. A unique index on the `videoId` column handles the rare collision. The ESM/CommonJS issue is handled by pinning to `nanoid@3.x` (CJS-compatible).
 
-**Libraries:** `nanoid`
+**Libraries:** `nanoid@^3.x`
+
+**Revisions:**
+
+- 2026-09-21 — Pin to `nanoid@3.x` (CJS-compatible). `nanoid` v4+ is ESM-only and throws `ERR_REQUIRE_ESM` in CommonJS NestJS apps. Rationale: plan-resolve ICC-1.
 
 ### phase-03-videos/TD-06
 
