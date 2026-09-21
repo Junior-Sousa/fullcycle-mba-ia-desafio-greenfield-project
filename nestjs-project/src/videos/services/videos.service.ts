@@ -174,9 +174,14 @@ export class VideosService {
   }
 
   private async findVideoByIdOrVideoId(idOrVideoId: string): Promise<Video> {
-    const video = await this.videoRepository.findOne({
-      where: [{ id: idOrVideoId }, { videoId: idOrVideoId }],
-    });
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idOrVideoId,
+      );
+
+    const video = isUuid
+      ? await this.videoRepository.findOneBy({ id: idOrVideoId })
+      : await this.videoRepository.findOneBy({ videoId: idOrVideoId });
 
     if (!video) {
       throw new VideoNotFoundException();

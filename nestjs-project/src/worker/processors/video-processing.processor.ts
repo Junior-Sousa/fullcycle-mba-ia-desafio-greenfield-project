@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from 'bullmq';
 import ffmpeg = require('fluent-ffmpeg');
+import * as ffmpegStatic from 'ffmpeg-static';
+import * as ffprobeStatic from '@ffprobe-installer/ffprobe';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -28,6 +30,13 @@ export class VideoProcessingProcessor extends WorkerHost {
     private readonly storageService: StorageService,
   ) {
     super();
+
+    if (ffmpegStatic) {
+      ffmpeg.setFfmpegPath(typeof ffmpegStatic === 'string' ? ffmpegStatic : (ffmpegStatic as any).default || ffmpegStatic);
+    }
+    if (ffprobeStatic && ffprobeStatic.path) {
+      ffmpeg.setFfprobePath(ffprobeStatic.path);
+    }
   }
 
   async process(job: Job<ProcessVideoJobData>): Promise<any> {
