@@ -21,7 +21,11 @@ describe('VideosService', () => {
       create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'uuid-1' })),
       save: jest.fn().mockImplementation((video) => Promise.resolve({ ...video })),
       findOne: jest.fn(),
+      findOneBy: jest.fn(),
     };
+    videoRepositoryMock.findOneBy.mockImplementation((where: any) =>
+      videoRepositoryMock.findOne({ where }),
+    );
 
     storageServiceMock = {
       createMultipartUpload: jest.fn().mockResolvedValue('upload-id-123'),

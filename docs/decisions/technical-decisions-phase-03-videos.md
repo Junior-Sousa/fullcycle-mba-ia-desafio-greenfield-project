@@ -1,7 +1,7 @@
 ---
 scope_type: phase
 related_phases: [3]
-status: pending
+status: decided
 date: 2026-09-21
 scope_description: "Backend & Infra for video lifecycle: message queue technology, 10GB upload strategy via S3 presigned URLs, video worker runtime and FFmpeg processing, unique URL generation, video streaming strategy, video status lifecycle and failure handling."
 ---

@@ -19,12 +19,20 @@ This is a monorepo with two main areas:
 See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 
 - **Frontend** (Next.js) → calls API via REST, streams from Object Storage
-- **API** (Nest.js) → business rules, auth, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
-- **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
+- **API** (Nest.js) → business rules, auth, videos, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
+- **Video Worker** (FFmpeg) → NestJS standalone app, consumes BullMQ jobs from queue, extracts metadata & duration via ffprobe, generates thumbnail via ffmpeg, updates DB and storage
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
-- **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
-- **Email Service** (SMTP) → account confirmation and password recovery
+- **Object Storage** (S3/MinIO) → video files and thumbnails (MinIO on port 9000/9001)
+- **Message Queue** (BullMQ + Redis) → video processing job queue (Redis on port 6379)
+- **Email Service** (SMTP) → account confirmation and password recovery (Mailpit on port 1025/8025)
+
+## Phase 03 — Video Module Endpoints
+
+- `POST /videos/upload/initiate` (Auth) — Initiates multipart upload, creates DRAFT video record with NanoID `videoId`, returns presigned part URLs.
+- `POST /videos/:videoId/upload/confirm` (Auth) — Confirms multipart upload, updates status to `UPLOADED`, dispatches BullMQ background processing job.
+- `GET /videos/:videoId` (Public) — Returns video metadata, thumbnail URL, and streaming/download URLs (when status is `READY`).
+- `GET /videos/:videoId/stream` (Public) — 302 redirect to presigned GET URL in S3/MinIO for playback.
+- `GET /videos/:videoId/download` (Public) — 302 redirect to presigned GET URL with `response-content-disposition=attachment` header.
 
 ## Docker Networking
 
