@@ -9,7 +9,9 @@ import {
 } from 'class-validator';
 
 export class PartETagDto {
-  @ApiProperty({ description: 'ETag retornado pelo S3/MinIO no upload da parte' })
+  @ApiProperty({
+    description: 'ETag retornado pelo S3/MinIO no upload da parte',
+  })
   @IsString()
   @IsNotEmpty()
   ETag: string;

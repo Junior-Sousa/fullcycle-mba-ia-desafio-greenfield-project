@@ -129,7 +129,9 @@ export class VideosService {
 
     if (video.status === VideoStatus.READY) {
       if (video.s3Key) {
-        streamUrl = await this.storageService.getPresignedStreamUrl(video.s3Key);
+        streamUrl = await this.storageService.getPresignedStreamUrl(
+          video.s3Key,
+        );
         downloadUrl = await this.storageService.getPresignedDownloadUrl(
           video.s3Key,
           video.originalFileName || undefined,

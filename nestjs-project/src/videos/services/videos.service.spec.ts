@@ -19,7 +19,9 @@ describe('VideosService', () => {
   beforeEach(async () => {
     videoRepositoryMock = {
       create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'uuid-1' })),
-      save: jest.fn().mockImplementation((video) => Promise.resolve({ ...video })),
+      save: jest
+        .fn()
+        .mockImplementation((video) => Promise.resolve({ ...video })),
       findOne: jest.fn(),
       findOneBy: jest.fn(),
     };
@@ -29,10 +31,16 @@ describe('VideosService', () => {
 
     storageServiceMock = {
       createMultipartUpload: jest.fn().mockResolvedValue('upload-id-123'),
-      getPresignedPartUrl: jest.fn().mockResolvedValue('http://minio/presigned-part-url'),
+      getPresignedPartUrl: jest
+        .fn()
+        .mockResolvedValue('http://minio/presigned-part-url'),
       completeMultipartUpload: jest.fn().mockResolvedValue(undefined),
-      getPresignedStreamUrl: jest.fn().mockResolvedValue('http://minio/stream-url'),
-      getPresignedDownloadUrl: jest.fn().mockResolvedValue('http://minio/download-url'),
+      getPresignedStreamUrl: jest
+        .fn()
+        .mockResolvedValue('http://minio/stream-url'),
+      getPresignedDownloadUrl: jest
+        .fn()
+        .mockResolvedValue('http://minio/download-url'),
     };
 
     queueMock = {
@@ -106,7 +114,11 @@ describe('VideosService', () => {
         parts: [{ ETag: 'etag-1', PartNumber: 1 }],
       };
 
-      const result = await service.confirmUpload('user-1', 'short-123', confirmDto);
+      const result = await service.confirmUpload(
+        'user-1',
+        'short-123',
+        confirmDto,
+      );
 
       expect(result.status).toBe(VideoStatus.UPLOADED);
       expect(storageServiceMock.completeMultipartUpload).toHaveBeenCalledWith(
@@ -116,7 +128,10 @@ describe('VideosService', () => {
       );
       expect(queueMock.add).toHaveBeenCalledWith(
         'process-video',
-        expect.objectContaining({ videoId: 'uuid-1', videoShortId: 'short-123' }),
+        expect.objectContaining({
+          videoId: 'uuid-1',
+          videoShortId: 'short-123',
+        }),
         expect.any(Object),
       );
     });

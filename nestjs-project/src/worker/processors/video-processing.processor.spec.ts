@@ -13,11 +13,15 @@ describe('VideoProcessingProcessor', () => {
   beforeEach(async () => {
     videoRepositoryMock = {
       findOneBy: jest.fn(),
-      save: jest.fn().mockImplementation((video) => Promise.resolve({ ...video })),
+      save: jest
+        .fn()
+        .mockImplementation((video) => Promise.resolve({ ...video })),
     };
 
     storageServiceMock = {
-      getObjectStream: jest.fn().mockResolvedValue(Readable.from(['fake video bytes'])),
+      getObjectStream: jest
+        .fn()
+        .mockResolvedValue(Readable.from(['fake video bytes'])),
       uploadBuffer: jest.fn().mockResolvedValue('thumbnails/short-123.jpg'),
     };
 

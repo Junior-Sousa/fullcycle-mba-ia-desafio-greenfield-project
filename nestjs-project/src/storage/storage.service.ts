@@ -45,9 +45,7 @@ export class StorageService implements OnModuleInit {
 
   async ensureBucketExists() {
     try {
-      await this.s3Client.send(
-        new HeadBucketCommand({ Bucket: this.bucket }),
-      );
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucket }));
     } catch (err: any) {
       if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
         this.logger.log(`Bucket ${this.bucket} not found. Creating...`);
@@ -57,15 +55,23 @@ export class StorageService implements OnModuleInit {
           );
           this.logger.log(`Bucket ${this.bucket} created successfully.`);
         } catch (createErr) {
-          this.logger.error(`Failed to create bucket ${this.bucket}:`, createErr);
+          this.logger.error(
+            `Failed to create bucket ${this.bucket}:`,
+            createErr,
+          );
         }
       } else {
-        this.logger.warn(`Could not verify bucket ${this.bucket}: ${err.message}`);
+        this.logger.warn(
+          `Could not verify bucket ${this.bucket}: ${err.message}`,
+        );
       }
     }
   }
 
-  async createMultipartUpload(key: string, contentType?: string): Promise<string> {
+  async createMultipartUpload(
+    key: string,
+    contentType?: string,
+  ): Promise<string> {
     const command = new CreateMultipartUploadCommand({
       Bucket: this.bucket,
       Key: key,

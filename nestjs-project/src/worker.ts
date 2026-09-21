@@ -6,7 +6,9 @@ async function bootstrap() {
   const logger = new Logger('WorkerBootstrap');
   const app = await NestFactory.createApplicationContext(AppModule);
   await app.init();
-  logger.log('Video Processing Worker initialized and processing BullMQ queues...');
+  logger.log(
+    'Video Processing Worker initialized and processing BullMQ queues...',
+  );
 }
 
 bootstrap().catch((err) => {

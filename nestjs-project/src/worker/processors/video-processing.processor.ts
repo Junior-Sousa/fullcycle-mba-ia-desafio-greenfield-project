@@ -32,7 +32,11 @@ export class VideoProcessingProcessor extends WorkerHost {
     super();
 
     if (ffmpegStatic) {
-      ffmpeg.setFfmpegPath(typeof ffmpegStatic === 'string' ? ffmpegStatic : (ffmpegStatic as any).default || ffmpegStatic);
+      ffmpeg.setFfmpegPath(
+        typeof ffmpegStatic === 'string'
+          ? ffmpegStatic
+          : (ffmpegStatic as any).default || ffmpegStatic,
+      );
     }
     if (ffprobeStatic && ffprobeStatic.path) {
       ffmpeg.setFfprobePath(ffprobeStatic.path);
@@ -87,9 +91,14 @@ export class VideoProcessingProcessor extends WorkerHost {
       video.processingError = null;
       await this.videoRepository.save(video);
 
-      this.logger.log(`Video ${videoId} processed successfully (duration: ${duration}s)`);
+      this.logger.log(
+        `Video ${videoId} processed successfully (duration: ${duration}s)`,
+      );
     } catch (err: any) {
-      this.logger.error(`Error processing video ${videoId}: ${err.message}`, err.stack);
+      this.logger.error(
+        `Error processing video ${videoId}: ${err.message}`,
+        err.stack,
+      );
 
       const maxAttempts = job.opts.attempts || 3;
       if (job.attemptsMade >= maxAttempts) {
@@ -103,7 +112,9 @@ export class VideoProcessingProcessor extends WorkerHost {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch (cleanupErr: any) {
-        this.logger.warn(`Failed to cleanup temp dir ${tempDir}: ${cleanupErr.message}`);
+        this.logger.warn(
+          `Failed to cleanup temp dir ${tempDir}: ${cleanupErr.message}`,
+        );
       }
     }
   }

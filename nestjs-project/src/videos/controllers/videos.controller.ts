@@ -74,12 +74,10 @@ export class VideosController {
   @Public()
   @Get(':videoId/stream')
   @ApiOperation({
-    summary: 'Reproduzir/Streamar vídeo por redirecionamento direto para o storage',
+    summary:
+      'Reproduzir/Streamar vídeo por redirecionamento direto para o storage',
   })
-  async getStreamUrl(
-    @Param('videoId') videoId: string,
-    @Res() res: Response,
-  ) {
+  async getStreamUrl(@Param('videoId') videoId: string, @Res() res: Response) {
     const url = await this.videosService.getStreamUrl(videoId);
     return res.redirect(HttpStatus.FOUND, url);
   }
@@ -87,7 +85,8 @@ export class VideosController {
   @Public()
   @Get(':videoId/download')
   @ApiOperation({
-    summary: 'Download direto do vídeo via redirecionamento com Content-Disposition',
+    summary:
+      'Download direto do vídeo via redirecionamento com Content-Disposition',
   })
   async getDownloadUrl(
     @Param('videoId') videoId: string,
