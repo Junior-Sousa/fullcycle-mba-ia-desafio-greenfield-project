@@ -45,9 +45,9 @@ O projeto é um monorepo baseado em containers Docker. Cada subprojeto sobe sua 
 - **API** (NestJS 11) — regras de negócio, autenticação (JWT + refresh token rotation), envio de e-mails e acesso ao banco.
 - **Database** (PostgreSQL 17) — usuários, canais e tokens de autenticação.
 - **Email Service** (Mailpit) — captura os e-mails transacionais (confirmação de conta e recuperação de senha) em uma UI local.
-- **Video Worker** (FFmpeg) — processamento de vídeos *(planejado — Fase 03)*.
-- **Object Storage** (S3/MinIO) — arquivos de vídeo e thumbnails *(planejado — Fase 03)*.
-- **Message Queue** — fila de processamento de vídeos *(planejado — Fase 03)*.
+- **Video Worker** (FFmpeg + BullMQ) — processamento assíncrono de vídeos em segundo plano (Fase 03).
+- **Object Storage** (S3/MinIO) — arquivos de vídeo e thumbnails (Fase 03).
+- **Message Queue** (BullMQ + Redis) — fila de processamento de vídeos (Fase 03).
 
 O diagrama de arquitetura completo (C4) está em `docs/diagrams/software-arch.mermaid`.
 
@@ -55,12 +55,12 @@ O diagrama de arquitetura completo (C4) está em `docs/diagrams/software-arch.me
 
 Os dois subprojetos têm stacks Docker **separadas**. Suba primeiro o backend, rode as migrations e depois o frontend.
 
-### 1. Backend (NestJS + PostgreSQL + Mailpit)
+### 1. Backend (NestJS + PostgreSQL + Mailpit + Redis + MinIO + Worker)
 
 ```bash
 cd nestjs-project
 
-# Sobe API, banco e Mailpit
+# Sobe API, banco, Mailpit, Redis, MinIO e Worker
 docker compose up -d
 
 # Instala dependências (apenas na primeira vez)
@@ -82,6 +82,7 @@ Serviços disponíveis:
 | Redis (BullMQ Queue) | `localhost:6379` |
 | MinIO (S3 Storage) | `localhost:9000` (API) \| http://localhost:9001 (Console Web) |
 | Mailpit (UI de e-mails) | http://localhost:8025 |
+| Video Worker | Processo em segundo plano (BullMQ + FFmpeg) |
 | Swagger (opcional) | http://localhost:3000/api/docs — habilite com `SWAGGER_ENABLED=true` |
 
 ### 2. Frontend (Next.js)
@@ -202,7 +203,7 @@ green-field-ia-project/
 │   │   └── worker.ts                    # Entry point do processo isolado do Video Worker
 │   ├── test/                            # Testes e2e
 │   ├── api.http                         # REST Client endpoints de teste (Fase 02 + 03)
-│   ├── compose.yaml                     # Docker Compose (API + PostgreSQL + Mailpit + Redis + MinIO)
+│   ├── compose.yaml                     # Docker Compose (API + PostgreSQL + Mailpit + Redis + MinIO + Worker)
 │   └── Dockerfile.dev
 ├── next-frontend/                       # Frontend (Next.js 16, App Router)
 │   ├── app/                             # Rotas, layouts, páginas e Route Handlers BFF
