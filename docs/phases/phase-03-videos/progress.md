@@ -20,13 +20,13 @@
 
 ### SI-03.4 — Video Upload Initiation Endpoint
 - **Status:** completed
-- **Tests:** 4/4 passing (`videos.service.spec.ts`)
-- **Observations:** `POST /videos/upload/initiate` pre-registers video as `DRAFT`, generates NanoID, calls S3 `CreateMultipartUpload`, and returns presigned part URLs.
+- **Tests:** 4/4 unit passing (`videos.service.spec.ts`); E2E passing (`test/videos.e2e-spec.ts`)
+- **Observations:** `POST /videos/upload/initiate` pre-registers video as `DRAFT`, generates NanoID, calls S3 `CreateMultipartUpload`, and returns presigned part URLs. Verified unauthenticated (401), validation (400) and success (201).
 
 ### SI-03.5 — Video Upload Confirmation Endpoint
 - **Status:** completed
-- **Tests:** 3/3 passing (`videos.service.spec.ts`)
-- **Observations:** `POST /videos/:videoId/upload/confirm` verifies ownership, executes S3 `CompleteMultipartUpload`, updates status to `UPLOADED`, and dispatches job to BullMQ `video-processing` queue.
+- **Tests:** 3/3 unit passing (`videos.service.spec.ts`); E2E passing (`test/videos.e2e-spec.ts`)
+- **Observations:** `POST /videos/:videoId/upload/confirm` verifies ownership, executes S3 `CompleteMultipartUpload`, updates status to `UPLOADED`, and dispatches job to BullMQ `video-processing` queue. Verified ownership enforcement (403), status check (400) and success (200).
 
 ### SI-03.6 — Video Worker Process and FFmpeg Processing Processor
 - **Status:** completed
@@ -35,8 +35,8 @@
 
 ### SI-03.7 — Video Metadata, Streaming, and Download Endpoints
 - **Status:** completed
-- **Tests:** 5/5 passing (`videos.service.spec.ts`)
-- **Observations:** Implemented `GET /videos/:videoId`, `GET /videos/:videoId/stream` (302 redirect to S3 presigned GET URL), and `GET /videos/:videoId/download` (302 redirect to S3 presigned GET URL with `Content-Disposition: attachment`).
+- **Tests:** 5/5 unit passing (`videos.service.spec.ts`); E2E passing (`test/videos.e2e-spec.ts`)
+- **Observations:** Implemented `GET /videos/:videoId`, `GET /videos/:videoId/stream` (302 redirect to S3 presigned GET URL), and `GET /videos/:videoId/download` (302 redirect to S3 presigned GET URL with `Content-Disposition: attachment`). Verified 404 on missing videos and 400 on non-ready videos.
 
 ### SI-03.8 — Docker Compose Infrastructure and Dedicated Worker Service
 - **Status:** completed

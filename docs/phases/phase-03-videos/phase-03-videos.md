@@ -27,7 +27,10 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 - Create `StorageModule` exporting `StorageService`.
 
 **Tests:**
-- Unit test `storage.service.spec.ts` validating S3 client command construction and presigned URL parameters.
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/storage/storage.service.spec.ts` | Unit | AWS S3 client command construction, presigned part URLs generation, multipart completion and bucket initialization |
 
 **Dependencies:** None
 
@@ -45,6 +48,12 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 - Create `src/config/queue.config.ts` using `registerAs('queue', ...)` reading `REDIS_HOST` (`redis`), `REDIS_PORT` (`6379`), `REDIS_PASSWORD`.
 - Register `BullModule.forRootAsync` in `AppModule` using `queueConfig.KEY` and registering queue `'video-processing'`.
 
+**Tests:**
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/app.module.ts` | Unit / Compilation | BullModule and QueueModule registration with Redis connection parameters and video-processing queue |
+
 **Dependencies:** None
 
 **Acceptance criteria:**
@@ -61,6 +70,12 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 - Create `Video` entity in `src/videos/entities/video.entity.ts` with fields: `id` (UUID), `videoId` (21-char NanoID, unique index), `title`, `description`, `status`, `originalFileName`, `mimeType`, `fileSize`, `s3Key`, `thumbnailKey`, `duration`, `processingError`, `userId` (FK to `users.id`, `ON DELETE CASCADE`), `createdAt`, `updatedAt`.
 - Create migration for the `videos` table and `video_status_enum`.
 
+**Tests:**
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/database/migrations/1780000000000-CreateVideosTable.ts` | Integration | Schema definition, `videos` table creation, enum values, `UQ_videoId` unique constraint, and FK constraint to users |
+
 **Dependencies:** SI-03.1, SI-03.2
 
 **Acceptance criteria:**
@@ -74,12 +89,16 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 **Description:** Implement `POST /videos/upload/initiate` endpoint allowing authenticated users to initiate a video upload, pre-register the video as `DRAFT`, and receive presigned part URLs.
 
 **Technical actions:**
-- Create DTO `InitiateUploadDto` (`title`, `description`, `originalFileName`, `mimeType`, `fileSize`, `partCount`).
+- Create DTO `InitiateUploadDto` (`title`, `description`, `originalFileName`, `mimeType`, `fileSize`).
 - Implement `initiateUpload` in `VideosService`: generate 21-char NanoID via `nanoid@^3.x`, create `Video` record in status `DRAFT`, invoke `StorageService.createMultipartUpload`, generate N presigned part URLs, and return `videoId`, `uploadId`, `key`, and `parts` array.
 - Expose `POST /videos/upload/initiate` in `VideosController` protected by `JwtAuthGuard`.
 
 **Tests:**
-- Unit test `videos.service.spec.ts` covering `initiateUpload`.
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/videos/services/videos.service.spec.ts` | Unit | initiateUpload generates NanoID, invokes multipart initiation, calculates part count and returns presigned part URLs |
+| `test/videos.e2e-spec.ts` | E2E | `POST /videos/upload/initiate` requires JWT, validates payload, creates DRAFT video in database and returns 201 with presigned part URLs |
 
 **Dependencies:** SI-03.1, SI-03.3
 
@@ -99,7 +118,11 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 - Expose `POST /videos/:videoId/upload/confirm` in `VideosController`.
 
 **Tests:**
-- Unit test `videos.service.spec.ts` covering `confirmUpload`.
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/videos/services/videos.service.spec.ts` | Unit | confirmUpload verifies user ownership, checks DRAFT status, completes S3 multipart upload, transitions status to UPLOADED and queues job |
+| `test/videos.e2e-spec.ts` | E2E | `POST /videos/:videoId/upload/confirm` enforces ownership (403), validates status (400 if not DRAFT), returns 200 UPLOADED |
 
 **Dependencies:** SI-03.4
 
@@ -121,7 +144,10 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 - On failure after max retries: set status to `ERROR` and save error message to `processingError`.
 
 **Tests:**
-- Unit test `video-processing.processor.spec.ts` covering job execution and error handling.
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/worker/processors/video-processing.processor.spec.ts` | Unit | Processor handles job, transitions status to PROCESSING, extracts metadata via ffprobe, captures frame via ffmpeg, uploads thumbnail to S3 and marks READY or ERROR |
 
 **Dependencies:** SI-03.5
 
@@ -141,7 +167,11 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
 - `GET /videos/:videoId/download` (Public): Generates presigned GET URL for `s3Key` with `response-content-disposition=attachment` header and issues HTTP 302 Redirect.
 
 **Tests:**
-- Unit tests in `videos.service.spec.ts` for metadata, streaming, and download logic.
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `src/videos/services/videos.service.spec.ts` | Unit | getVideo returns metadata and presigned URLs when READY; getStreamUrl redirects to presigned GET URL; getDownloadUrl redirects with attachment disposition; throws InvalidVideoStateException when not ready |
+| `test/videos.e2e-spec.ts` | E2E | `GET /videos/:videoId` returns 200 metadata (or 404); `GET /videos/:videoId/stream` redirects 302 (or 400); `GET /videos/:videoId/download` redirects 302 (or 400) |
 
 **Dependencies:** SI-03.6
 
@@ -162,6 +192,12 @@ Implement the complete backend video processing pipeline for StreamTube: Object 
   - `minio`: MinIO S3 storage with console port and healthcheck.
   - `nestjs-worker`: Service built from `Dockerfile.dev`, running `command: npm run start:worker`, volume `.:/home/node/app`, and `depends_on` healthy `db`, `redis`, and `minio`.
   - Add `redis` and `minio` to `depends_on` of `nestjs-api`.
+
+**Tests:**
+
+| File | Layer | Verifies |
+|------|-------|----------|
+| `nestjs-project/compose.yaml` | Infra / E2E | All 6 services (`nestjs-api`, `nestjs-worker`, `redis`, `minio`, `db`, `mailpit`) start up healthy and connected |
 
 **Dependencies:** SI-03.6
 
