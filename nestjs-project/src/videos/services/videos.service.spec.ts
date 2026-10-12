@@ -9,6 +9,7 @@ import { StorageService } from '../../storage/storage.service';
 import { ChannelsService } from '../../channels/channels.service';
 import { Channel } from '../../channels/entities/channel.entity';
 import {
+  ChannelNotFoundException,
   InvalidVideoStateException,
   VideoNotFoundException,
   VideoNotOwnedByUserException,
@@ -145,6 +146,87 @@ describe('VideosService', () => {
           userId: 'user-1',
           channelId: 'channel-uuid-1',
         }),
+      );
+    });
+
+    it('should throw ChannelNotFoundException when user channel does not exist', async () => {
+      channelsServiceMock.findByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.initiateUpload('user-without-channel', {
+          title: 'Title',
+          fileName: 'video.mp4',
+          mimeType: 'video/mp4',
+          fileSize: 1000,
+        }),
+      ).rejects.toThrow(ChannelNotFoundException);
+    });
+  });
+
+  describe('getStreamUrl', () => {
+    it('should return presigned stream URL when video is READY', async () => {
+      const mockVideo: Partial<Video> = {
+        id: 'uuid-1',
+        videoId: 'short-123',
+        status: VideoStatus.READY,
+        s3Key: 'raw-videos/short-123/test.mp4',
+      };
+      videoRepositoryMock.findOne.mockResolvedValue(mockVideo);
+
+      const url = await service.getStreamUrl('short-123');
+
+      expect(url).toBe('http://minio/stream-url');
+      expect(storageServiceMock.getPresignedStreamUrl).toHaveBeenCalledWith(
+        'raw-videos/short-123/test.mp4',
+      );
+    });
+
+    it('should throw InvalidVideoStateException when video is not READY', async () => {
+      const mockVideo: Partial<Video> = {
+        id: 'uuid-1',
+        videoId: 'short-123',
+        status: VideoStatus.PROCESSING,
+        s3Key: 'raw-videos/short-123/test.mp4',
+      };
+      videoRepositoryMock.findOne.mockResolvedValue(mockVideo);
+
+      await expect(service.getStreamUrl('short-123')).rejects.toThrow(
+        InvalidVideoStateException,
+      );
+    });
+  });
+
+  describe('getDownloadUrl', () => {
+    it('should return presigned download URL when video is READY', async () => {
+      const mockVideo: Partial<Video> = {
+        id: 'uuid-1',
+        videoId: 'short-123',
+        status: VideoStatus.READY,
+        s3Key: 'raw-videos/short-123/test.mp4',
+        originalFileName: 'original.mp4',
+      };
+      videoRepositoryMock.findOne.mockResolvedValue(mockVideo);
+
+      const url = await service.getDownloadUrl('short-123');
+
+      expect(url).toBe('http://minio/download-url');
+      expect(storageServiceMock.getPresignedDownloadUrl).toHaveBeenCalledWith(
+        'raw-videos/short-123/test.mp4',
+        'original.mp4',
+      );
+    });
+
+    it('should throw InvalidVideoStateException when video is not READY', async () => {
+      const mockVideo: Partial<Video> = {
+        id: 'uuid-1',
+        videoId: 'short-123',
+        status: VideoStatus.DRAFT,
+        s3Key: 'raw-videos/short-123/test.mp4',
+      };
+      videoRepositoryMock.findOne.mockResolvedValue(mockVideo);
+
+      await expect(service.getDownloadUrl('short-123')).rejects.toThrow(
+        InvalidVideoStateException,
       );
     });
   });
