@@ -46,24 +46,32 @@ export class StorageService implements OnModuleInit {
   async ensureBucketExists() {
     try {
       await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-    } catch (err: any) {
-      if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+    } catch (err: unknown) {
+      const errorObj = err as {
+        name?: string;
+        $metadata?: { httpStatusCode?: number };
+        message?: string;
+      };
+      if (
+        errorObj.name === 'NotFound' ||
+        errorObj.$metadata?.httpStatusCode === 404
+      ) {
         this.logger.log(`Bucket ${this.bucket} not found. Creating...`);
         try {
           await this.s3Client.send(
             new CreateBucketCommand({ Bucket: this.bucket }),
           );
           this.logger.log(`Bucket ${this.bucket} created successfully.`);
-        } catch (createErr) {
+        } catch (createErr: unknown) {
+          const createErrMsg =
+            createErr instanceof Error ? createErr.message : String(createErr);
           this.logger.error(
-            `Failed to create bucket ${this.bucket}:`,
-            createErr,
+            `Failed to create bucket ${this.bucket}: ${createErrMsg}`,
           );
         }
       } else {
-        this.logger.warn(
-          `Could not verify bucket ${this.bucket}: ${err.message}`,
-        );
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Could not verify bucket ${this.bucket}: ${errorMsg}`);
       }
     }
   }

@@ -21,8 +21,10 @@ export class CreateVideosTable1780000000000 implements MigrationInterface {
         "s3Key" character varying(500),
         "thumbnailKey" character varying(500),
         "duration" double precision,
+        "metadata" jsonb,
         "processingError" text,
         "userId" uuid NOT NULL,
+        "channelId" uuid NOT NULL,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "UQ_videoId" UNIQUE ("videoId"),
@@ -35,14 +37,26 @@ export class CreateVideosTable1780000000000 implements MigrationInterface {
     );
 
     await queryRunner.query(
+      `CREATE INDEX "IDX_videos_channelId" ON "videos" ("channelId")`,
+    );
+
+    await queryRunner.query(
       `ALTER TABLE "videos" ADD CONSTRAINT "FK_videos_userId" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "videos" ADD CONSTRAINT "FK_videos_channelId" FOREIGN KEY ("channelId") REFERENCES "channels"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
+      `ALTER TABLE "videos" DROP CONSTRAINT "FK_videos_channelId"`,
+    );
+    await queryRunner.query(
       `ALTER TABLE "videos" DROP CONSTRAINT "FK_videos_userId"`,
     );
+    await queryRunner.query(`DROP INDEX "public"."IDX_videos_channelId"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_videos_videoId"`);
     await queryRunner.query(`DROP TABLE "videos"`);
     await queryRunner.query(`DROP TYPE "public"."videos_status_enum"`);

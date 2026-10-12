@@ -1,21 +1,34 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { VideoProcessingProcessor } from './video-processing.processor';
-import { Video, VideoStatus } from '../../videos/entities/video.entity';
+import { Repository } from 'typeorm';
+import { Job } from 'bullmq';
+import {
+  ProcessVideoJobData,
+  VideoProcessingProcessor,
+} from './video-processing.processor';
+import { Video } from '../../videos/entities/video.entity';
 import { StorageService } from '../../storage/storage.service';
 import { Readable } from 'stream';
 
 describe('VideoProcessingProcessor', () => {
   let processor: VideoProcessingProcessor;
-  let videoRepositoryMock: any;
-  let storageServiceMock: any;
+  let videoRepositoryMock: {
+    findOneBy: jest.Mock;
+    save: jest.Mock;
+  };
+  let storageServiceMock: {
+    getObjectStream: jest.Mock;
+    uploadBuffer: jest.Mock;
+  };
 
   beforeEach(async () => {
     videoRepositoryMock = {
       findOneBy: jest.fn(),
       save: jest
         .fn()
-        .mockImplementation((video) => Promise.resolve({ ...video })),
+        .mockImplementation((video: Partial<Video>) =>
+          Promise.resolve({ ...video }),
+        ),
     };
 
     storageServiceMock = {
@@ -30,11 +43,11 @@ describe('VideoProcessingProcessor', () => {
         VideoProcessingProcessor,
         {
           provide: getRepositoryToken(Video),
-          useValue: videoRepositoryMock,
+          useValue: videoRepositoryMock as unknown as Repository<Video>,
         },
         {
           provide: StorageService,
-          useValue: storageServiceMock,
+          useValue: storageServiceMock as unknown as StorageService,
         },
       ],
     }).compile();
@@ -54,7 +67,7 @@ describe('VideoProcessingProcessor', () => {
       data: { videoId: 'uuid-1', videoShortId: 'short-123', s3Key: 'key' },
       opts: { attempts: 3 },
       attemptsMade: 1,
-    } as any;
+    } as unknown as Job<ProcessVideoJobData>;
 
     await processor.process(job);
 

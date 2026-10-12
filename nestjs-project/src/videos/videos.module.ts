@@ -5,11 +5,13 @@ import { Video } from './entities/video.entity';
 import { VideosService } from './services/videos.service';
 import { VideosController } from './controllers/videos.controller';
 import { StorageModule } from '../storage/storage.module';
+import { ChannelsModule } from '../channels/channels.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Video]),
     StorageModule,
+    ChannelsModule,
     BullModule.registerQueue({
       name: 'video-processing',
     }),

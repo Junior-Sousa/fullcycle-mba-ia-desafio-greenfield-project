@@ -17,3 +17,9 @@ export class InvalidVideoStateException extends DomainException {
     super('INVALID_VIDEO_STATE', 400, message);
   }
 }
+
+export class ChannelNotFoundException extends DomainException {
+  constructor() {
+    super('CHANNEL_NOT_FOUND', 404, 'User channel not found');
+  }
+}

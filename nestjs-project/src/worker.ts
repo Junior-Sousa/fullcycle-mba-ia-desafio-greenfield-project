@@ -1,10 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { WorkerAppModule } from './worker/worker-app.module';
 
 async function bootstrap() {
   const logger = new Logger('WorkerBootstrap');
-  const app = await NestFactory.createApplicationContext(AppModule);
+  const app = await NestFactory.createApplicationContext(WorkerAppModule);
+  app.enableShutdownHooks();
   await app.init();
   logger.log(
     'Video Processing Worker initialized and processing BullMQ queues...',

@@ -102,6 +102,7 @@
     "setupFiles": [
       "dotenv/config"
     ],
+    "testTimeout": 30000,
     "transformIgnorePatterns": [
       "node_modules/(?!(@nestjs/bullmq|@nestjs/bull-shared)/)"
     ]

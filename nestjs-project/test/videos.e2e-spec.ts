@@ -4,9 +4,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource, Repository } from 'typeorm';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { AppModule } from '../src/app.module';
 import { AuthService } from '../src/auth/auth.service';
 import { Video, VideoStatus } from '../src/videos/entities/video.entity';
+import { Channel } from '../src/channels/entities/channel.entity';
 import { StorageService } from '../src/storage/storage.service';
 import { DomainExceptionFilter } from '../src/common/filters/domain-exception.filter';
 import { ValidationExceptionFilter } from '../src/common/filters/validation-exception.filter';
@@ -16,6 +18,7 @@ describe('Videos (e2e)', () => {
   let app: INestApplication<App>;
   let dataSource: DataSource;
   let videoRepository: Repository<Video>;
+  let throttlerStorage: ThrottlerStorageService;
 
   const storageServiceMock = {
     createMultipartUpload: jest.fn().mockResolvedValue('test-upload-id-123'),
@@ -65,6 +68,8 @@ describe('Videos (e2e)', () => {
 
     dataSource = moduleFixture.get(DataSource);
     videoRepository = dataSource.getRepository(Video);
+    throttlerStorage =
+      moduleFixture.get<ThrottlerStorageService>(ThrottlerStorage);
   });
 
   afterAll(async () => {
@@ -78,13 +83,14 @@ describe('Videos (e2e)', () => {
       // Table might be clean
     }
     await cleanAllTables(dataSource);
+    throttlerStorage.storage.clear();
     jest.clearAllMocks();
   });
 
   async function registerAndLogin(
     email: string,
     password = 'password123',
-  ): Promise<{ token: string; userId: string }> {
+  ): Promise<{ token: string; userId: string; channelId: string }> {
     const authService = app.get(AuthService);
     const mailServiceInstance = (authService as any).mailService;
     let capturedToken = '';
@@ -98,6 +104,12 @@ describe('Videos (e2e)', () => {
       .post('/auth/register')
       .send({ email, password });
 
+    if (regRes.status !== 201) {
+      throw new Error(
+        `register failed: ${regRes.status} ${JSON.stringify(regRes.body)}`,
+      );
+    }
+
     await request(app.getHttpServer())
       .get('/auth/confirm-email')
       .query({ token: capturedToken });
@@ -106,9 +118,13 @@ describe('Videos (e2e)', () => {
       .post('/auth/login')
       .send({ email, password });
 
+    const channelRepo = dataSource.getRepository(Channel);
+    const channel = await channelRepo.findOneBy({ user_id: regRes.body.id });
+
     return {
       token: loginRes.body.access_token,
       userId: regRes.body.id,
+      channelId: channel!.id,
     };
   }
 
@@ -156,7 +172,7 @@ describe('Videos (e2e)', () => {
         .expect(201);
 
       expect(res.body.id).toBeDefined();
-      expect(res.body.videoId).toHaveLength(10);
+      expect(res.body.videoId).toHaveLength(21);
       expect(res.body.uploadId).toBe('test-upload-id-123');
       expect(res.body.parts).toHaveLength(2);
       expect(res.body.parts[0].partNumber).toBe(1);
@@ -353,15 +369,18 @@ describe('Videos (e2e)', () => {
     });
 
     it('redirects (302) to presigned stream URL when video is READY', async () => {
-      const { userId } = await registerAndLogin('stream_ready@example.com');
+      const { userId, channelId } = await registerAndLogin(
+        'stream_ready@example.com',
+      );
 
       const video = videoRepository.create({
-        videoId: 'ready123456',
+        videoId: 'ready123456789012345',
         title: 'Vídeo Pronto',
         status: VideoStatus.READY,
-        s3Key: 'raw-videos/ready123456/ready.mp4',
+        s3Key: 'raw-videos/ready123456789012345/ready.mp4',
         duration: 120,
         userId,
+        channelId,
       });
       await videoRepository.save(video);
 
@@ -400,16 +419,19 @@ describe('Videos (e2e)', () => {
     });
 
     it('redirects (302) to presigned download URL when video is READY', async () => {
-      const { userId } = await registerAndLogin('download_ready@example.com');
+      const { userId, channelId } = await registerAndLogin(
+        'download_ready@example.com',
+      );
 
       const video = videoRepository.create({
-        videoId: 'dlready1234',
+        videoId: 'dlready1234567890123',
         title: 'Vídeo Pronto Download',
         status: VideoStatus.READY,
-        s3Key: 'raw-videos/dlready1234/ready.mp4',
+        s3Key: 'raw-videos/dlready1234567890123/ready.mp4',
         originalFileName: 'ready.mp4',
         duration: 120,
         userId,
+        channelId,
       });
       await videoRepository.save(video);
 

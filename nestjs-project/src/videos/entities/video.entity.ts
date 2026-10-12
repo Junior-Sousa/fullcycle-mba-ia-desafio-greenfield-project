@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Channel } from '../../channels/entities/channel.entity';
 
 export enum VideoStatus {
   DRAFT = 'DRAFT',
@@ -58,6 +59,9 @@ export class Video {
   @Column({ type: 'float', nullable: true })
   duration: number | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, any> | null;
+
   @Column({ type: 'text', nullable: true })
   processingError: string | null;
 
@@ -67,6 +71,13 @@ export class Video {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
+
+  @Column({ type: 'uuid' })
+  channelId: string;
+
+  @ManyToOne(() => Channel, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'channelId' })
+  channel: Channel;
 
   @CreateDateColumn()
   createdAt: Date;
