@@ -1,20 +1,20 @@
 ---
 libs:
   "@nestjs/bullmq":
-    version: "^11.0.0"
-    fetched_at: "2026-09-21T15:31:00-03:00"
+    version: "^12.0.0"
+    fetched_at: "2026-10-12T00:00:00-03:00"
   "bullmq":
-    version: "^5.x"
-    fetched_at: "2026-09-21T15:31:00-03:00"
+    version: "^6.3.8"
+    fetched_at: "2026-10-12T00:00:00-03:00"
   "ioredis":
     version: "^5.x"
     fetched_at: "2026-09-21T15:31:00-03:00"
   "@aws-sdk/client-s3":
-    version: "^3.x"
-    fetched_at: "2026-09-21T15:31:00-03:00"
+    version: "^3.1136.0"
+    fetched_at: "2026-10-12T00:00:00-03:00"
   "@aws-sdk/s3-request-presigner":
-    version: "^3.x"
-    fetched_at: "2026-09-21T15:31:00-03:00"
+    version: "^3.1136.0"
+    fetched_at: "2026-10-12T00:00:00-03:00"
   "fluent-ffmpeg":
     version: "^2.x"
     fetched_at: "2026-09-21T15:31:00-03:00"

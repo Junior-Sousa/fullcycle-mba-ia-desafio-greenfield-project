@@ -3,9 +3,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from 'bullmq';
-import ffmpeg = require('fluent-ffmpeg');
-import * as ffmpegStatic from 'ffmpeg-static';
-import * as ffprobeStatic from '@ffprobe-installer/ffprobe';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
+import ffprobeStatic from '@ffprobe-installer/ffprobe';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -31,21 +31,19 @@ export class VideoProcessingProcessor extends WorkerHost {
   ) {
     super();
 
-    if (ffmpegStatic) {
-      ffmpeg.setFfmpegPath(
-        typeof ffmpegStatic === 'string'
-          ? ffmpegStatic
-          : (ffmpegStatic as any).default || ffmpegStatic,
-      );
+    if (ffmpegPath && typeof ffmpegPath === 'string') {
+      ffmpeg.setFfmpegPath(ffmpegPath);
     }
-    if (ffprobeStatic && ffprobeStatic.path) {
+    if (ffprobeStatic && typeof ffprobeStatic.path === 'string') {
       ffmpeg.setFfprobePath(ffprobeStatic.path);
     }
   }
 
-  async process(job: Job<ProcessVideoJobData>): Promise<any> {
+  async process(job: Job<ProcessVideoJobData>): Promise<void> {
     const { videoId, videoShortId, s3Key } = job.data;
-    this.logger.log(`Processing video job ${job.id} for videoId: ${videoId}`);
+    this.logger.log(
+      `Processing video job ${job.id ?? 'unknown'} for videoId: ${videoId}`,
+    );
 
     const video = await this.videoRepository.findOneBy({ id: videoId });
     if (!video) {
@@ -65,11 +63,28 @@ export class VideoProcessingProcessor extends WorkerHost {
       const stream = await this.storageService.getObjectStream(s3Key);
       await this.saveStreamToFile(stream, tempVideoPath);
 
-      // 2. Extract metadata (duration) using ffprobe
-      const metadata = await this.extractMetadata(tempVideoPath);
-      const duration = metadata.format.duration || 0;
+      // 2. Extract metadata (duration + format/stream specs) using ffprobe
+      const probeData = await this.extractMetadata(tempVideoPath);
+      const duration = probeData.format.duration ?? 0;
 
-      // 3. Compute thumbnail timestamp (AMB-1 resolution heuristic: min(10s, duration * 10%))
+      const videoStream = probeData.streams?.find(
+        (s) => s.codec_type === 'video',
+      );
+      const audioStream = probeData.streams?.find(
+        (s) => s.codec_type === 'audio',
+      );
+
+      const metadata: Record<string, any> = {
+        formatName: probeData.format.format_name,
+        bitRate: probeData.format.bit_rate,
+        width: videoStream?.width,
+        height: videoStream?.height,
+        videoCodec: videoStream?.codec_name,
+        audioCodec: audioStream?.codec_name,
+        frameRate: videoStream?.r_frame_rate,
+      };
+
+      // 3. Compute thumbnail timestamp (heuristic: min(10s, duration * 10%))
       const thumbnailSeek = Math.min(10, duration * 0.1);
 
       // 4. Extract thumbnail frame using ffmpeg
@@ -87,6 +102,7 @@ export class VideoProcessingProcessor extends WorkerHost {
       // 6. Update video entity status to READY
       video.status = VideoStatus.READY;
       video.duration = duration;
+      video.metadata = metadata;
       video.thumbnailKey = thumbnailKey;
       video.processingError = null;
       await this.videoRepository.save(video);
@@ -94,26 +110,31 @@ export class VideoProcessingProcessor extends WorkerHost {
       this.logger.log(
         `Video ${videoId} processed successfully (duration: ${duration}s)`,
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : undefined;
+
       this.logger.error(
-        `Error processing video ${videoId}: ${err.message}`,
-        err.stack,
+        `Error processing video ${videoId}: ${errorMessage}`,
+        errorStack,
       );
 
-      const maxAttempts = job.opts.attempts || 3;
+      const maxAttempts = job.opts.attempts ?? 3;
       if (job.attemptsMade >= maxAttempts) {
         video.status = VideoStatus.ERROR;
-        video.processingError = err.message || 'Unknown processing error';
+        video.processingError = errorMessage || 'Unknown processing error';
         await this.videoRepository.save(video);
       }
-      throw err;
+      throw err instanceof Error ? err : new Error(String(err));
     } finally {
       // Cleanup local temp directory
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch (cleanupErr: any) {
+      } catch (cleanupErr: unknown) {
+        const cleanupMsg =
+          cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
         this.logger.warn(
-          `Failed to cleanup temp dir ${tempDir}: ${cleanupErr.message}`,
+          `Failed to cleanup temp dir ${tempDir}: ${cleanupMsg}`,
         );
       }
     }
@@ -124,16 +145,21 @@ export class VideoProcessingProcessor extends WorkerHost {
       const writer = fs.createWriteStream(filePath);
       stream.pipe(writer);
       writer.on('finish', () => resolve());
-      writer.on('error', (err) => reject(err));
+      writer.on('error', (err: Error) => reject(err));
     });
   }
 
   private extractMetadata(filePath: string): Promise<ffmpeg.FfprobeData> {
     return new Promise((resolve, reject) => {
-      ffmpeg.ffprobe(filePath, (err, data) => {
-        if (err) return reject(err);
-        resolve(data);
-      });
+      ffmpeg.ffprobe(
+        filePath,
+        (err: Error | null, data: ffmpeg.FfprobeData) => {
+          if (err) {
+            return reject(err instanceof Error ? err : new Error(String(err)));
+          }
+          resolve(data);
+        },
+      );
     });
   }
 
@@ -148,7 +174,9 @@ export class VideoProcessingProcessor extends WorkerHost {
         .frames(1)
         .output(thumbPath)
         .on('end', () => resolve())
-        .on('error', (err) => reject(err))
+        .on('error', (err: Error) =>
+          reject(err instanceof Error ? err : new Error(String(err))),
+        )
         .run();
     });
   }

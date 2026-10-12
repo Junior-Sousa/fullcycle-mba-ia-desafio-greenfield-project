@@ -24,8 +24,14 @@ export function createTestDataSource(
 }
 
 export async function cleanAllTables(dataSource: DataSource): Promise<void> {
+  try {
+    await dataSource.query('DELETE FROM "videos"');
+  } catch {
+    // Tabela pode não existir em testes de fases anteriores
+  }
   await dataSource.query('DELETE FROM "refresh_tokens"');
   await dataSource.query('DELETE FROM "verification_tokens"');
   await dataSource.query('DELETE FROM "channels"');
   await dataSource.query('DELETE FROM "users"');
 }
+

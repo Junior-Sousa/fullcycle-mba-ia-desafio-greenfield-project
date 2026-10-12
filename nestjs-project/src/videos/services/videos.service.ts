@@ -8,11 +8,14 @@ import { Video, VideoStatus } from '../entities/video.entity';
 import { StorageService } from '../../storage/storage.service';
 import { InitiateUploadDto } from '../dto/initiate-upload.dto';
 import { ConfirmUploadDto } from '../dto/confirm-upload.dto';
+import { ChannelsService } from '../../channels/channels.service';
 import {
+  ChannelNotFoundException,
   InvalidVideoStateException,
   VideoNotFoundException,
   VideoNotOwnedByUserException,
 } from '../exceptions/video.exceptions';
+import * as path from 'path';
 
 @Injectable()
 export class VideosService {
@@ -22,13 +25,22 @@ export class VideosService {
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
     private readonly storageService: StorageService,
+    private readonly channelsService: ChannelsService,
     @InjectQueue('video-processing')
     private readonly videoQueue: Queue,
   ) {}
 
   async initiateUpload(userId: string, dto: InitiateUploadDto) {
-    const videoId = nanoid(10);
-    const s3Key = `raw-videos/${videoId}/${dto.fileName}`;
+    const channel = await this.channelsService.findByUserId(userId);
+    if (!channel) {
+      throw new ChannelNotFoundException();
+    }
+
+    const videoId = nanoid(21);
+    const sanitizedFileName = path
+      .basename(dto.fileName)
+      .replace(/[^a-zA-Z0-9._-]/g, '_');
+    const s3Key = `raw-videos/${videoId}/${sanitizedFileName}`;
 
     const uploadId = await this.storageService.createMultipartUpload(
       s3Key,
@@ -58,6 +70,7 @@ export class VideosService {
       fileSize: dto.fileSize,
       s3Key,
       userId,
+      channelId: channel.id,
     });
 
     await this.videoRepository.save(video);

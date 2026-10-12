@@ -36,7 +36,7 @@ export class VideosController {
       'Pré-cadastra o vídeo em status DRAFT e retorna URLs pré-assinadas para envio direto em partes ao storage (MinIO/S3).',
   })
   @ApiResponse({
-    status: 210,
+    status: 201,
     description: 'Upload multipart iniciado com sucesso',
   })
   async initiateUpload(
