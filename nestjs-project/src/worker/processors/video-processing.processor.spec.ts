@@ -6,6 +6,7 @@ import { Job } from 'bullmq';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import ffmpeg from 'fluent-ffmpeg';
 import {
   ProcessVideoJobData,
   VideoProcessingProcessor,
@@ -13,6 +14,19 @@ import {
 import { Video, VideoStatus } from '../../videos/entities/video.entity';
 import { StorageService } from '../../storage/storage.service';
 import { Readable } from 'stream';
+
+jest.mock('@ffprobe-installer/ffprobe', () => ({ path: '/mock/ffprobe' }));
+jest.mock('ffmpeg-static', () => '/mock/ffmpeg');
+
+type PrivateProcessor = {
+  saveStreamToFile(stream: Readable, filePath: string): Promise<void>;
+  extractMetadata(filePath: string): Promise<ffmpeg.FfprobeData>;
+  extractThumbnail(
+    videoPath: string,
+    thumbPath: string,
+    seekSeconds: number,
+  ): Promise<void>;
+};
 
 describe('VideoProcessingProcessor', () => {
   let processor: VideoProcessingProcessor;
@@ -90,16 +104,18 @@ describe('VideoProcessingProcessor', () => {
     };
     videoRepositoryMock.findOneBy.mockResolvedValue(video);
 
+    const privateProcessor = processor as unknown as PrivateProcessor;
+
     jest
-      .spyOn(processor as any, 'saveStreamToFile')
+      .spyOn(privateProcessor, 'saveStreamToFile')
       .mockResolvedValue(undefined);
 
-    const mockProbeData = {
+    const mockProbeData: ffmpeg.FfprobeData = {
       format: {
         duration: 125.5,
         format_name: 'mov,mp4,m4a,3gp,3g2,mj2',
-        bit_rate: '2500000',
-      },
+        bit_rate: 2500000,
+      } as unknown as ffmpeg.FfprobeFormat,
       streams: [
         {
           codec_type: 'video',
@@ -107,20 +123,21 @@ describe('VideoProcessingProcessor', () => {
           height: 1080,
           codec_name: 'h264',
           r_frame_rate: '30/1',
-        },
+        } as unknown as ffmpeg.FfprobeStream,
         {
           codec_type: 'audio',
           codec_name: 'aac',
-        },
+        } as unknown as ffmpeg.FfprobeStream,
       ],
+      chapters: [],
     };
 
     jest
-      .spyOn(processor as any, 'extractMetadata')
+      .spyOn(privateProcessor, 'extractMetadata')
       .mockResolvedValue(mockProbeData);
 
     jest
-      .spyOn(processor as any, 'extractThumbnail')
+      .spyOn(privateProcessor, 'extractThumbnail')
       .mockImplementation((_videoPath: string, thumbPath: string) => {
         fs.writeFileSync(thumbPath, Buffer.from('fake-thumbnail-image'));
         return Promise.resolve();
@@ -168,8 +185,10 @@ describe('VideoProcessingProcessor', () => {
     };
     videoRepositoryMock.findOneBy.mockResolvedValue(video);
 
+    const privateProcessor = processor as unknown as PrivateProcessor;
+
     jest
-      .spyOn(processor as any, 'saveStreamToFile')
+      .spyOn(privateProcessor, 'saveStreamToFile')
       .mockRejectedValue(new Error('Corrupt stream received'));
 
     const job = {
@@ -203,8 +222,10 @@ describe('VideoProcessingProcessor', () => {
     };
     videoRepositoryMock.findOneBy.mockResolvedValue(video);
 
+    const privateProcessor = processor as unknown as PrivateProcessor;
+
     jest
-      .spyOn(processor as any, 'saveStreamToFile')
+      .spyOn(privateProcessor, 'saveStreamToFile')
       .mockRejectedValue(new Error('Network glitch'));
 
     const job = {
@@ -231,8 +252,9 @@ describe('VideoProcessingProcessor', () => {
     it('should save stream to file', async () => {
       const stream = Readable.from(['chunk1', 'chunk2']);
       const tmpPath = path.join(os.tmpdir(), `test-save-${Date.now()}.txt`);
+      const privateProcessor = processor as unknown as PrivateProcessor;
 
-      await (processor as any).saveStreamToFile(stream, tmpPath);
+      await privateProcessor.saveStreamToFile(stream, tmpPath);
 
       expect(fs.existsSync(tmpPath)).toBe(true);
       const content = fs.readFileSync(tmpPath, 'utf8');
@@ -243,37 +265,51 @@ describe('VideoProcessingProcessor', () => {
     it('should reject saveStreamToFile on writer error', async () => {
       const stream = Readable.from(['chunk']);
       // Writing to an invalid path or directory that does not exist triggers writer 'error' event
-      const invalidPath = path.join(os.tmpdir(), 'non-existent-subfolder-xyz', 'file.txt');
+      const invalidPath = path.join(
+        os.tmpdir(),
+        'non-existent-subfolder-xyz',
+        'file.txt',
+      );
+      const privateProcessor = processor as unknown as PrivateProcessor;
 
       await expect(
-        (processor as any).saveStreamToFile(stream, invalidPath),
+        privateProcessor.saveStreamToFile(stream, invalidPath),
       ).rejects.toThrow();
     });
 
     it('should call ffprobe in extractMetadata and resolve probe data', async () => {
-      const mockData = { format: { duration: 10 }, streams: [] };
-      const ffmpeg = require('fluent-ffmpeg');
+      const mockData = {
+        format: { duration: 10 },
+        streams: [],
+      } as unknown as ffmpeg.FfprobeData;
       const spy = jest
         .spyOn(ffmpeg, 'ffprobe')
-        .mockImplementation((_filePath: any, cb: any) => {
-          cb(null, mockData);
+        .mockImplementation((_filePath: string, cb: unknown) => {
+          (cb as (err: Error | null, data: ffmpeg.FfprobeData) => void)(
+            null,
+            mockData,
+          );
         });
 
-      const result = await (processor as any).extractMetadata('fake-file.mp4');
+      const privateProcessor = processor as unknown as PrivateProcessor;
+      const result = await privateProcessor.extractMetadata('fake-file.mp4');
       expect(result).toEqual(mockData);
       spy.mockRestore();
     });
 
     it('should call ffprobe in extractMetadata and reject on error', async () => {
-      const ffmpeg = require('fluent-ffmpeg');
       const spy = jest
         .spyOn(ffmpeg, 'ffprobe')
-        .mockImplementation((_filePath: any, cb: any) => {
-          cb(new Error('ffprobe error'), null);
+        .mockImplementation((_filePath: string, cb: unknown) => {
+          (cb as (err: Error | null, data: ffmpeg.FfprobeData | null) => void)(
+            new Error('ffprobe error'),
+            null,
+          );
         });
 
+      const privateProcessor = processor as unknown as PrivateProcessor;
       await expect(
-        (processor as any).extractMetadata('fake-file.mp4'),
+        privateProcessor.extractMetadata('fake-file.mp4'),
       ).rejects.toThrow('ffprobe error');
       spy.mockRestore();
     });

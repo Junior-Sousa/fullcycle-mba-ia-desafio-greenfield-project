@@ -31,10 +31,15 @@ export class VideoProcessingProcessor extends WorkerHost {
   ) {
     super();
 
-    if (ffmpegPath && typeof ffmpegPath === 'string') {
+    if (fs.existsSync('/usr/bin/ffmpeg')) {
+      ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+    } else if (ffmpegPath && typeof ffmpegPath === 'string') {
       ffmpeg.setFfmpegPath(ffmpegPath);
     }
-    if (ffprobeStatic && typeof ffprobeStatic.path === 'string') {
+
+    if (fs.existsSync('/usr/bin/ffprobe')) {
+      ffmpeg.setFfprobePath('/usr/bin/ffprobe');
+    } else if (ffprobeStatic && typeof ffprobeStatic.path === 'string') {
       ffmpeg.setFfprobePath(ffprobeStatic.path);
     }
   }
