@@ -9,7 +9,6 @@ import ffprobeStatic from '@ffprobe-installer/ffprobe';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { spawnSync } from 'child_process';
 import { Video, VideoStatus } from '../../videos/entities/video.entity';
 import { StorageService } from '../../storage/storage.service';
 import { Readable } from 'stream';
@@ -32,38 +31,16 @@ export class VideoProcessingProcessor extends WorkerHost {
   ) {
     super();
 
-    if (ffmpegPath && typeof ffmpegPath === 'string') {
-      try {
-        const test = spawnSync(ffmpegPath, ['-version']);
-        if (test.status === 0) {
-          ffmpeg.setFfmpegPath(ffmpegPath);
-        } else if (fs.existsSync('/usr/bin/ffmpeg')) {
-          ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
-        }
-      } catch {
-        if (fs.existsSync('/usr/bin/ffmpeg')) {
-          ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
-        }
-      }
-    } else if (fs.existsSync('/usr/bin/ffmpeg')) {
+    if (fs.existsSync('/usr/bin/ffmpeg')) {
       ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+    } else if (ffmpegPath && typeof ffmpegPath === 'string') {
+      ffmpeg.setFfmpegPath(ffmpegPath);
     }
 
-    if (ffprobeStatic && typeof ffprobeStatic.path === 'string') {
-      try {
-        const test = spawnSync(ffprobeStatic.path, ['-version']);
-        if (test.status === 0) {
-          ffmpeg.setFfprobePath(ffprobeStatic.path);
-        } else if (fs.existsSync('/usr/bin/ffprobe')) {
-          ffmpeg.setFfprobePath('/usr/bin/ffprobe');
-        }
-      } catch {
-        if (fs.existsSync('/usr/bin/ffprobe')) {
-          ffmpeg.setFfprobePath('/usr/bin/ffprobe');
-        }
-      }
-    } else if (fs.existsSync('/usr/bin/ffprobe')) {
+    if (fs.existsSync('/usr/bin/ffprobe')) {
       ffmpeg.setFfprobePath('/usr/bin/ffprobe');
+    } else if (ffprobeStatic && typeof ffprobeStatic.path === 'string') {
+      ffmpeg.setFfprobePath(ffprobeStatic.path);
     }
   }
 
